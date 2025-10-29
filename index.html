@@ -7,9 +7,9 @@
       name="viewport"
       content="initial-scale=1,maximum-scale=1,user-scalable=no"
     />
-    <script src="https://unpkg.com/maplibre-gl@2.1.6/dist/maplibre-gl.js"></script>
+    <script src="https://unpkg.com/maplibre-gl@5.10.0/dist/maplibre-gl.js"></script>
     <link
-      href="https://unpkg.com/maplibre-gl@2.1.6/dist/maplibre-gl.css"
+      href="https://unpkg.com/maplibre-gl@5.10.0/dist/maplibre-gl.css"
       rel="stylesheet"
     />
     <script src="https://unpkg.com/@maplibre/maplibre-gl-compare@0.5.0/dist/maplibre-gl-compare.js"></script>
@@ -170,13 +170,13 @@
 
       const leftMap = new maplibregl.Map({
         container: 'left',
-        style: initLeftStyle,
+        style: parseStyleInput(initLeftStyle).value,
         hash: true,
       })
 
       const rightMap = new maplibregl.Map({
         container: 'right',
-        style: initRightStyle,
+        style: parseStyleInput(initRightStyle).value,
         hash: true,
       })
 
