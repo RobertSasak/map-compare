@@ -40,6 +40,7 @@
       }
       .config-btn {
         position: absolute;
+        z-index: 1000;
         top: 12px;
         right: 12px;
         background: rgba(0, 0, 0, 0.6);
@@ -52,6 +53,7 @@
       }
       .config-panel {
         position: absolute;
+        z-index: 1000;
         top: 56px;
         right: 12px;
         width: 420px;
@@ -215,7 +217,12 @@
             return { type: 'invalid-json', error: err }
           }
         }
-        // Otherwise treat as URL
+
+        if (/\{[zZ]\}|\{[xX]\}|\{[yY]\}/.test(t)) {
+          return { type: 'tile-template', value: t }
+        }
+
+        // Otherwise treat as URL (likely a style.json URL)
         return { type: 'url', value: t }
       }
 
@@ -223,8 +230,30 @@
         const parsed = parseStyleInput(inputText)
         if (parsed.type === 'empty') throw new Error('Empty style input')
         if (parsed.type === 'invalid-json') throw parsed.error
-        mapInstance.setStyle(parsed.value)
-        return 'applied-json'
+        if (parsed.type === 'json') {
+          mapInstance.setStyle(parsed.value)
+        } else if (parsed.type === 'tile-template') {
+          mapInstance.setStyle({
+            version: 8,
+            name: parsed.value,
+            sources: {
+              'simple-tiles': {
+                type: 'raster',
+                tiles: [parsed.value],
+                tileSize: 256,
+              },
+            },
+            layers: [
+              {
+                id: 'simple-tiles-layer',
+                type: 'raster',
+                source: 'simple-tiles',
+              },
+            ],
+          })
+        } else {
+          mapInstance.setStyle(parsed.value)
+        }
       }
 
       applyBtn.addEventListener('click', async () => {
