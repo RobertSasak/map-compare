@@ -156,19 +156,27 @@
       </div>
     </div>
     <script>
-      const defaultLeftStyle = 'https://demotiles.maplibre.org/style.json'
-      const defaultRightStyle =
+      const LS_LEFT = 'map-compare:left-style'
+      const LS_RIGHT = 'map-compare:right-style'
+      const DEFAULT_LEFT_STYLE = 'https://demotiles.maplibre.org/style.json'
+      const DEFAULT_RIGHT_STYLE =
+        'https://api.protomaps.com/styles/v5/light/en.json?key=498e4a2080b69126'
+      const initLeftStyle =
+        localStorage.getItem(LS_LEFT) ||
+        'https://demotiles.maplibre.org/style.json'
+      const initRightStyle =
+        localStorage.getItem(LS_RIGHT) ||
         'https://api.protomaps.com/styles/v5/light/en.json?key=498e4a2080b69126'
 
       const leftMap = new maplibregl.Map({
         container: 'left',
-        style: defaultLeftStyle,
+        style: initLeftStyle,
         hash: true,
       })
 
       const rightMap = new maplibregl.Map({
         container: 'right',
-        style: defaultRightStyle,
+        style: initRightStyle,
         hash: true,
       })
 
@@ -186,8 +194,8 @@
       const resetBtn = document.getElementById('reset-config')
       const statusEl = document.getElementById('config-status')
 
-      leftInput.value = defaultLeftStyle
-      rightInput.value = defaultRightStyle
+      leftInput.value = initLeftStyle
+      rightInput.value = initRightStyle
 
       function showStatus(msg, isError = true) {
         statusEl.style.color = isError ? '#b00' : '#0b6'
@@ -265,6 +273,8 @@
             applyStyleToMap(rightMap, rightInput.value),
           ])
           showStatus('Styles applied', false)
+          localStorage.setItem(LS_LEFT, leftInput.value)
+          localStorage.setItem(LS_RIGHT, rightInput.value)
         } catch (err) {
           console.error(err)
           showStatus(
@@ -277,8 +287,10 @@
       })
 
       resetBtn.addEventListener('click', async () => {
-        leftInput.value = defaultLeftStyle
-        rightInput.value = defaultRightStyle
+        localStorage.removeItem(LS_LEFT)
+        localStorage.removeItem(LS_RIGHT)
+        leftInput.value = DEFAULT_LEFT_STYLE
+        rightInput.value = DEFAULT_RIGHT_STYLE
         clearStatus()
         applyBtn.click()
       })
