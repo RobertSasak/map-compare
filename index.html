@@ -22,6 +22,8 @@
       body {
         margin: 0;
         padding: 0;
+        font-family: system-ui, -apple-system, Segoe UI, Roboto,
+          'Helvetica Neue', Arial;
       }
       body * {
         -webkit-touch-callout: none;
@@ -36,32 +38,231 @@
         bottom: 0;
         width: 100%;
       }
+      .config-btn {
+        position: absolute;
+        top: 12px;
+        right: 12px;
+        background: rgba(0, 0, 0, 0.6);
+        color: white;
+        border: none;
+        padding: 8px 12px;
+        border-radius: 6px;
+        cursor: pointer;
+        font-weight: 600;
+      }
+      .config-panel {
+        position: absolute;
+        top: 56px;
+        right: 12px;
+        width: 420px;
+        max-width: calc(100% - 32px);
+        background: rgba(255, 255, 255, 0.98);
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+        border-radius: 8px;
+        padding: 12px;
+        display: none;
+      }
+      .config-panel h3 {
+        margin: 6px 0 8px 0;
+        font-size: 14px;
+      }
+      .config-row {
+        margin-bottom: 10px;
+      }
+      .config-row label {
+        display: block;
+        font-size: 12px;
+        margin-bottom: 6px;
+      }
+      .style-input {
+        width: 100%;
+        min-height: 88px;
+        box-sizing: border-box;
+        padding: 8px;
+        font-family: monospace;
+        font-size: 12px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        resize: vertical;
+      }
+      .config-actions {
+        display: flex;
+        gap: 8px;
+        justify-content: flex-end;
+        margin-top: 8px;
+      }
+      .btn {
+        padding: 6px 10px;
+        border-radius: 6px;
+        border: 1px solid rgba(0, 0, 0, 0.08);
+        cursor: pointer;
+      }
+      .btn.primary {
+        background: #2b7cff;
+        color: white;
+        border: none;
+      }
+      .btn.ghost {
+        background: transparent;
+      }
+      .status {
+        font-size: 12px;
+        color: #b00;
+        min-height: 18px;
+        margin-top: 6px;
+      }
     </style>
   </head>
   <body>
     <div id="comparison-container">
-      <div id="before" class="map"></div>
-      <div id="after" class="map"></div>
+      <div id="left" class="map"></div>
+      <div id="right" class="map"></div>
+    </div>
+    <button id="open-config" class="config-btn" title="Open configuration">
+      ⚙️ Config
+    </button>
+
+    <div
+      id="config-panel"
+      class="config-panel"
+      role="dialog"
+      aria-label="Map style configuration"
+    >
+      <h3>Map Styles</h3>
+      <div class="config-row">
+        <label for="left-style">Left map style (URL or paste full JSON)</label>
+        <textarea
+          id="left-style"
+          class="style-input"
+          placeholder="https://example.com/style.json or paste JSON here"
+        ></textarea>
+      </div>
+      <div class="config-row">
+        <label for="right-style"
+          >Right map style (URL or paste full JSON)</label
+        >
+        <textarea
+          id="right-style"
+          class="style-input"
+          placeholder="https://example.com/style.json or paste JSON here"
+        ></textarea>
+      </div>
+      <div class="status" id="config-status" aria-live="polite"></div>
+      <div class="config-actions">
+        <button id="reset-config" class="btn ghost">Reset</button>
+        <button id="apply-config" class="btn primary">Apply</button>
+      </div>
     </div>
     <script>
-      const beforeMap = new maplibregl.Map({
-        container: 'before',
-        style: 'https://demotiles.maplibre.org/style.json',
+      const defaultLeftStyle = 'https://demotiles.maplibre.org/style.json'
+      const defaultRightStyle =
+        'https://api.protomaps.com/styles/v5/light/en.json?key=498e4a2080b69126'
+
+      const leftMap = new maplibregl.Map({
+        container: 'left',
+        style: defaultLeftStyle,
         hash: true,
       })
 
-      const afterMap = new maplibregl.Map({
-        container: 'after',
-        style:
-          'https://api.protomaps.com/styles/v5/light/en.json?key=498e4a2080b69126',
+      const rightMap = new maplibregl.Map({
+        container: 'right',
+        style: defaultRightStyle,
         hash: true,
       })
 
       const map = new maplibregl.Compare(
-        beforeMap,
-        afterMap,
+        leftMap,
+        rightMap,
         '#comparison-container'
       )
+
+      const openBtn = document.getElementById('open-config')
+      const panel = document.getElementById('config-panel')
+      const leftInput = document.getElementById('left-style')
+      const rightInput = document.getElementById('right-style')
+      const applyBtn = document.getElementById('apply-config')
+      const resetBtn = document.getElementById('reset-config')
+      const statusEl = document.getElementById('config-status')
+
+      leftInput.value = defaultLeftStyle
+      rightInput.value = defaultRightStyle
+
+      function showStatus(msg, isError = true) {
+        statusEl.style.color = isError ? '#b00' : '#0b6'
+        statusEl.textContent = msg
+      }
+
+      function clearStatus() {
+        statusEl.textContent = ''
+      }
+
+      openBtn.addEventListener('click', () => {
+        panel.style.display =
+          panel.style.display === 'none' || panel.style.display === ''
+            ? 'block'
+            : 'none'
+      })
+
+      function parseStyleInput(text) {
+        const t = (text || '').trim()
+        if (!t) return { type: 'empty' }
+        // JSON likely starts with { or [
+        if (t[0] === '{' || t[0] === '[') {
+          try {
+            const obj = JSON.parse(t)
+            return { type: 'json', value: obj }
+          } catch (err) {
+            return { type: 'invalid-json', error: err }
+          }
+        }
+        // Otherwise treat as URL
+        return { type: 'url', value: t }
+      }
+
+      async function applyStyleToMap(mapInstance, inputText) {
+        const parsed = parseStyleInput(inputText)
+        if (parsed.type === 'empty') throw new Error('Empty style input')
+        if (parsed.type === 'invalid-json') throw parsed.error
+        mapInstance.setStyle(parsed.value)
+        return 'applied-json'
+      }
+
+      applyBtn.addEventListener('click', async () => {
+        clearStatus()
+        applyBtn.disabled = true
+        try {
+          await Promise.all([
+            applyStyleToMap(leftMap, leftInput.value),
+            applyStyleToMap(rightMap, rightInput.value),
+          ])
+          showStatus('Styles applied', false)
+        } catch (err) {
+          console.error(err)
+          showStatus(
+            'Failed to apply style: ' +
+              (err && err.message ? err.message : String(err))
+          )
+        } finally {
+          applyBtn.disabled = false
+        }
+      })
+
+      resetBtn.addEventListener('click', async () => {
+        leftInput.value = defaultLeftStyle
+        rightInput.value = defaultRightStyle
+        clearStatus()
+        applyBtn.click()
+      })
+
+      document.addEventListener('click', (ev) => {
+        if (!panel.contains(ev.target) && ev.target !== openBtn) {
+          panel.style.display = 'none'
+        }
+      })
+
+      document.addEventListener('keydown', (ev) => {
+        if (ev.key === 'Escape') panel.style.display = 'none'
+      })
     </script>
   </body>
 </html>
