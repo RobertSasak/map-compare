@@ -226,8 +226,28 @@
           }
         }
 
-        if (/\{[zZ]\}|\{[xX]\}|\{[yY]\}/.test(t)) {
-          return { type: 'tile-template', value: t }
+        if (/\{[zZ]\}|\{[xX]\}|\{[yY]\}|\{bbox-epsg-3857\}/.test(t)) {
+          return {
+            type: 'tile-template',
+            value: {
+              version: 8,
+              name: t,
+              sources: {
+                'simple-tiles': {
+                  type: 'raster',
+                  tiles: [t],
+                  tileSize: 256,
+                },
+              },
+              layers: [
+                {
+                  id: 'simple-tiles-layer',
+                  type: 'raster',
+                  source: 'simple-tiles',
+                },
+              ],
+            },
+          }
         }
 
         // Otherwise treat as URL (likely a style.json URL)
@@ -238,30 +258,7 @@
         const parsed = parseStyleInput(inputText)
         if (parsed.type === 'empty') throw new Error('Empty style input')
         if (parsed.type === 'invalid-json') throw parsed.error
-        if (parsed.type === 'json') {
-          mapInstance.setStyle(parsed.value)
-        } else if (parsed.type === 'tile-template') {
-          mapInstance.setStyle({
-            version: 8,
-            name: parsed.value,
-            sources: {
-              'simple-tiles': {
-                type: 'raster',
-                tiles: [parsed.value],
-                tileSize: 256,
-              },
-            },
-            layers: [
-              {
-                id: 'simple-tiles-layer',
-                type: 'raster',
-                source: 'simple-tiles',
-              },
-            ],
-          })
-        } else {
-          mapInstance.setStyle(parsed.value)
-        }
+        mapInstance.setStyle(parsed.value)
       }
 
       applyBtn.addEventListener('click', async () => {
